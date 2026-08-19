@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -54,7 +54,7 @@ export default function DatasetsPage() {
 
       <main style={{ minHeight: '100vh', backgroundColor: 'var(--color-canvas)' }}>
 
-        {/* ── Nav ──────────────────────────────────────────────────────────── */}
+        {/* Nav */}
         <nav style={{
           height: 64, borderBottom: '1px solid var(--color-hairline)',
           display: 'flex', alignItems: 'center', padding: '0 32px',
@@ -69,11 +69,11 @@ export default function DatasetsPage() {
             </span>
           </Link>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-muted)', marginLeft: 12 }}>
-            › Instant Analysis
+            Instant Analysis
           </span>
         </nav>
 
-        {/* ── Content ───────────────────────────────────────────────────────── */}
+        {/* Content */}
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 32px 80px' }}>
 
           {/* Header */}
@@ -103,7 +103,7 @@ export default function DatasetsPage() {
             </Link>
           </div>
 
-          {/* ── Error ──────────────────────────────────────────────────────── */}
+          {/* Error */}
           {error && (
             <div style={{
               padding: '16px 20px', borderRadius: 'var(--radius-xl)',
@@ -114,7 +114,7 @@ export default function DatasetsPage() {
             </div>
           )}
 
-          {/* ── Table ──────────────────────────────────────────────────────── */}
+          {/* Table */}
           {!error && (
             <div style={{
               borderRadius: 'var(--radius-xl)', border: '1px solid var(--color-hairline)',
@@ -159,7 +159,7 @@ export default function DatasetsPage() {
                           padding: '8px 16px', borderRadius: 'var(--radius-pill)',
                           textDecoration: 'none',
                         }}>
-                          Go upload →
+                          Go upload â†’
                         </Link>
                       </td>
                     </tr>
@@ -181,7 +181,7 @@ export default function DatasetsPage() {
                       {/* Filename */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 16, opacity: 0.4 }}>📄</span>
+                          <span style={{ fontSize: 16, opacity: 0.4 }}>ðŸ“„</span>
                           <span style={{
                             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
                             color: 'var(--color-ink)',
@@ -199,7 +199,7 @@ export default function DatasetsPage() {
                           backgroundColor: 'var(--color-canvas-soft)',
                           padding: '2px 6px', borderRadius: 4,
                         }}>
-                          {ds.dataset_id.slice(0, 8)}…
+                          {ds.dataset_id.slice(0, 8)}â€¦
                         </code>
                       </td>
 
@@ -224,7 +224,7 @@ export default function DatasetsPage() {
                             border: '1px solid var(--color-hairline)',
                           }}
                         >
-                          Open dashboard ↗
+                          Open dashboard â†—
                         </Link>
                       </td>
                     </tr>
@@ -239,7 +239,7 @@ export default function DatasetsPage() {
                   fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-muted)',
                   backgroundColor: 'var(--color-canvas-soft)',
                 }}>
-                  {datasets!.length} dataset{datasets!.length !== 1 ? 's' : ''} · newest first
+                  {datasets!.length} dataset{datasets!.length !== 1 ? 's' : ''} Â· newest first
                 </div>
               )}
             </div>
@@ -249,3 +249,4 @@ export default function DatasetsPage() {
     </>
   );
 }
+

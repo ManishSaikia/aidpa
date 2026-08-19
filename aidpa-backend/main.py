@@ -17,6 +17,7 @@ from routers.jobs import router as jobs_router
 from routers.query import router as query_router
 from routers.agent import router as agent_router
 from routers.embed import router as embed_router
+from routers.user import router as user_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,4 +96,6 @@ app.include_router(chat_router,      dependencies=_auth)
 app.include_router(query_router,     dependencies=_auth)
 app.include_router(agent_router,     dependencies=_auth)
 app.include_router(embed_router,     dependencies=_auth)
+app.include_router(user_router,      dependencies=_auth)
+
 
