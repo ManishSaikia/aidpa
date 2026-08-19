@@ -181,7 +181,7 @@ export default function DatasetsPage() {
                       {/* Filename */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 16, opacity: 0.4 }}>ðŸ“„</span>
+                          <span style={{ fontSize: 16, opacity: 0.4 }}></span>
                           <span style={{
                             fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
                             color: 'var(--color-ink)',
@@ -199,7 +199,7 @@ export default function DatasetsPage() {
                           backgroundColor: 'var(--color-canvas-soft)',
                           padding: '2px 6px', borderRadius: 4,
                         }}>
-                          {ds.dataset_id.slice(0, 8)}â€¦
+                          {ds.dataset_id.slice(0, 8)}
                         </code>
                       </td>
 
@@ -224,7 +224,7 @@ export default function DatasetsPage() {
                             border: '1px solid var(--color-hairline)',
                           }}
                         >
-                          Open dashboard â†—
+                          Open dashboard
                         </Link>
                       </td>
                     </tr>
@@ -239,7 +239,7 @@ export default function DatasetsPage() {
                   fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-muted)',
                   backgroundColor: 'var(--color-canvas-soft)',
                 }}>
-                  {datasets!.length} dataset{datasets!.length !== 1 ? 's' : ''} Â· newest first
+                  {datasets!.length} dataset{datasets!.length !== 1 ? 's' : ''} · newest first
                 </div>
               )}
             </div>
