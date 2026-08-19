@@ -1,0 +1,22 @@
+The user asked: "{{ question }}"
+
+The SQL query returned **{{ row_count }} row(s)** across **{{ columns | length }} column(s)**: {{ columns | join(", ") }}.
+
+{% if rows_sample %}
+First {{ rows_sample | length }} row(s) of the result:
+
+| {% for col in columns %}{{ col }}{% if not loop.last %} | {% endif %}{% endfor %} |
+|{% for col in columns %}---|{% endfor %}
+{% for row in rows_sample %}
+| {% for col in columns %}{{ row.get(col, "") | string | truncate(40, True, "…") }}{% if not loop.last %} | {% endif %}{% endfor %} |
+{% endfor %}
+{% else %}
+The query returned no rows.
+{% endif %}
+
+Write ONE paragraph (3–5 sentences) explaining what these results show in plain English.
+- Speak directly to the user's question.
+- Name specific values, counts, or patterns visible in the data.
+- If the result is empty (0 rows), say so and suggest why that might be.
+- Do NOT describe SQL syntax or mention the query itself.
+- Do NOT start with "The query returned..." or "Based on the results...".

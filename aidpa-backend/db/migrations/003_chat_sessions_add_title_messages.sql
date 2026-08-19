@@ -1,0 +1,3 @@
+ALTER TABLE chat_sessions
+    ADD COLUMN IF NOT EXISTS title         TEXT  NULL,
+    ADD COLUMN IF NOT EXISTS messages_json JSONB NOT NULL DEFAULT '[]';

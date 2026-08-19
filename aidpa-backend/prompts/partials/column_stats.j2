@@ -1,0 +1,7 @@
+{% for col_name, col in columns.items() %}
+{% if col.inferred_type == "numeric" %}
+- `{{ col_name }}` [numeric]: mean={{ col.mean }}, std={{ col.std }}, min={{ col.min }}, max={{ col.max }}, nulls={{ col.null_count }} ({{ col.null_pct }}%){% if col.zscore_outlier_count is not none %}, zscore_outliers={{ col.zscore_outlier_count }} ({{ col.zscore_outlier_pct }}%), iqr_outliers={{ col.iqr_outlier_count }} ({{ col.iqr_outlier_pct }}%){% endif %}{% if col.flagged_quality %} ⚠️ HIGH NULL{% endif %}
+{% else %}
+- `{{ col_name }}` [categorical]: cardinality={{ col.cardinality }}, nulls={{ col.null_count }} ({{ col.null_pct }}%), top=[{{ col.top_values | format_top }}]{% if col.flagged_quality %} ⚠️ HIGH NULL{% endif %}
+{% endif %}
+{% endfor %}
