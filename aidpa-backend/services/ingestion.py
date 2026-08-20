@@ -14,10 +14,38 @@ log = logging.getLogger("aidpa.ingestion")
 
 _UPLOAD_DIR = Path(tempfile.gettempdir()) / "aidpa_uploads"
 _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+_STORAGE_BUCKET = "datasets"
 
 
 def _table_name(dataset_id: str) -> str:
     return "ds_" + dataset_id.replace("-", "_")
+
+
+def _ensure_storage_bucket() -> None:
+    sb = get_supabase_client()
+    try:
+        sb.storage.get_bucket(_STORAGE_BUCKET)
+    except Exception:
+        try:
+            sb.storage.create_bucket(_STORAGE_BUCKET, options={"public": False})
+            log.info("Created Supabase Storage bucket '%s'", _STORAGE_BUCKET)
+        except Exception as exc:
+            log.debug("Bucket '%s' check/create note: %s", _STORAGE_BUCKET, exc)
+
+
+def _upload_to_storage(dataset_id: str, contents: bytes) -> None:
+    sb = get_supabase_client()
+    _ensure_storage_bucket()
+    storage_path = f"{dataset_id}.csv"
+    try:
+        sb.storage.from_(_STORAGE_BUCKET).upload(
+            path=storage_path,
+            file=contents,
+            file_options={"content-type": "text/csv", "upsert": "true"},
+        )
+        log.info("Uploaded dataset '%s' to Supabase Storage bucket '%s'", dataset_id, _STORAGE_BUCKET)
+    except Exception as exc:
+        log.warning("Supabase Storage upload failed for dataset %s: %s", dataset_id, exc)
 
 
 def _load_csv(
@@ -67,7 +95,7 @@ def _correct_date_columns(
                 )
                 corrected.append(col)
                 log.info(
-                    "Corrected column '%s' → DATE in table '%s'",
+                    "Corrected column '%s' -> DATE in table '%s'",
                     col, table_name,
                 )
             else:
@@ -90,6 +118,7 @@ def _correct_date_columns(
         )
 
     return corrected
+
 
 def _json_safe(value: Any) -> Any:
     if isinstance(value, date):
@@ -123,7 +152,7 @@ def _extract_metadata(
     ]
 
     log.info(
-        "Metadata extracted for dataset '%s': %d rows × %d cols",
+        "Metadata extracted for dataset '%s': %d rows | %d cols",
         dataset_id, row_count, len(columns),
     )
 
@@ -151,6 +180,9 @@ def ingest_dataset(contents: bytes, filename: str, user_id: str | None = None) -
     file_path  = _UPLOAD_DIR / f"{dataset_id}.csv"
     file_path.write_bytes(contents)
 
+    # Backup raw CSV to Supabase Storage for container rehydration resilience
+    _upload_to_storage(dataset_id, contents)
+
     table_name = _table_name(dataset_id)
 
     with get_db_connection() as conn:
@@ -172,3 +204,29 @@ def ingest_dataset(contents: bytes, filename: str, user_id: str | None = None) -
     _store_metadata(metadata)
 
     return dataset_id
+
+
+def ensure_dataset_loaded(dataset_id: str) -> None:
+    table_name = _table_name(dataset_id)
+
+    with get_db_connection() as conn:
+        tables = [row[0] for row in conn.execute("SELECT table_name FROM information_schema.tables").fetchall()]
+        if table_name in tables:
+            return
+
+        log.info("DuckDB table '%s' not present. Rehydrating from storage...", table_name)
+        file_path = _UPLOAD_DIR / f"{dataset_id}.csv"
+
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            sb = get_supabase_client()
+            try:
+                data = sb.storage.from_(_STORAGE_BUCKET).download(f"{dataset_id}.csv")
+                file_path.write_bytes(data)
+                log.info("Downloaded %d bytes for dataset '%s' from Supabase Storage", len(data), dataset_id)
+            except Exception as exc:
+                log.error("Failed to download dataset '%s' from Supabase Storage: %s", dataset_id, exc)
+                raise ValueError(f"Dataset '{dataset_id}' could not be rehydrated from storage.") from exc
+
+        _load_csv(conn, table_name, file_path)
+        _correct_date_columns(conn, table_name)
+        log.info("Successfully rehydrated table '%s' in DuckDB.", table_name)

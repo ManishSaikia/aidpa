@@ -10,7 +10,7 @@ from services.analysis_result import build_analysis_result
 from services.anomaly import detect_anomalies
 from services.jobs import create_job, run_in_background
 from services.stats import compute_column_stats, compute_quality_report
-from services.storage import get_upload, get_all_uploads
+from services.storage import delete_dataset, get_upload, get_all_uploads
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -21,7 +21,7 @@ def _require_ownership(dataset_id: str, user_id: str) -> None:
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found.")
 
 
-# ── Stats ─────────────────────────────────────────────────────────────────────
+# -- Stats ---------------------------------------------------------------------
 
 @router.get("/{dataset_id}/stats", response_model=APIResponse[dict])
 async def get_dataset_stats(
@@ -37,7 +37,7 @@ async def get_dataset_stats(
     return APIResponse(success=True, data=stats, error=None)
 
 
-# ── Quality ───────────────────────────────────────────────────────────────────
+# -- Quality -------------------------------------------------------------------
 
 @router.get("/{dataset_id}/quality", response_model=APIResponse[dict])
 async def get_dataset_quality(
@@ -46,7 +46,7 @@ async def get_dataset_quality(
         default=20.0,
         ge=0.0,
         le=100.0,
-        description="Flag columns whose null % exceeds this value (0–100).",
+        description="Flag columns whose null % exceeds this value (0-100).",
     ),
     current_user: AuthUser = Depends(get_current_user),
 ):
@@ -61,7 +61,7 @@ async def get_dataset_quality(
     return APIResponse(success=True, data=report, error=None)
 
 
-# ── Anomalies ─────────────────────────────────────────────────────────────────
+# -- Anomalies -----------------------------------------------------------------
 
 @router.get("/{dataset_id}/anomalies", response_model=APIResponse[dict])
 async def get_dataset_anomalies(
@@ -82,7 +82,7 @@ async def get_dataset_anomalies(
     return APIResponse(success=True, data=report, error=None)
 
 
-# ── Analysis (sync — waits for result) ───────────────────────────────────────
+# -- Analysis (sync - waits for result) ----------------------------------------
 
 @router.get("/{dataset_id}/analysis", response_model=APIResponse[AnalysisResult])
 async def get_dataset_analysis(
@@ -91,7 +91,7 @@ async def get_dataset_analysis(
         default=20.0,
         ge=0.0,
         le=100.0,
-        description="Null % threshold for flagging columns (0–100).",
+        description="Null % threshold for flagging columns (0-100).",
     ),
     current_user: AuthUser = Depends(get_current_user),
 ):
@@ -106,7 +106,7 @@ async def get_dataset_analysis(
     return APIResponse(success=True, data=result, error=None)
 
 
-# ── Analysis (async — returns job_id immediately) ─────────────────────────────
+# -- Analysis (async - returns job_id immediately) -----------------------------
 
 @router.post("/{dataset_id}/analysis/run", response_model=APIResponse[dict])
 async def run_dataset_analysis(
@@ -115,7 +115,7 @@ async def run_dataset_analysis(
         default=20.0,
         ge=0.0,
         le=100.0,
-        description="Null % threshold for flagging columns (0–100).",
+        description="Null % threshold for flagging columns (0-100).",
     ),
     current_user: AuthUser = Depends(get_current_user),
 ):
@@ -134,7 +134,7 @@ async def run_dataset_analysis(
     )
 
 
-# ── Dataset metadata (user-scoped) ────────────────────────────────────────────
+# -- Dataset metadata (user-scoped) --------------------------------------------
 
 @router.get("/", response_model=APIResponse[list])
 async def list_datasets(current_user: AuthUser = Depends(get_current_user)):
@@ -158,3 +158,20 @@ async def get_dataset(
         )
 
     return APIResponse(success=True, data=dataset, error=None)
+
+
+@router.delete("/{dataset_id}", response_model=APIResponse[dict])
+async def delete_dataset_endpoint(
+    dataset_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+):
+    """Permanently delete a dataset and all associated resources."""
+    _require_ownership(dataset_id, current_user.user_id)
+    try:
+        summary = await asyncio.to_thread(
+            delete_dataset, dataset_id, user_id=current_user.user_id
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {exc}")
+
+    return APIResponse(success=True, data=summary, error=None)

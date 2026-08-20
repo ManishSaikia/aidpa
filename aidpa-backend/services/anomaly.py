@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from db.connection import get_ro_connection
-from services.storage import dataset_table_name, get_upload
+from services.storage import dataset_table_name, ensure_dataset_loaded, get_upload
 
 # DuckDB type substrings that indicate a numeric column.
 _NUMERIC_TYPE_MARKERS = ("INT", "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL", "HUGEINT")
@@ -96,6 +96,7 @@ def detect_anomalies(
             f"Unknown method '{method}'. Choose from: {', '.join(sorted(allowed_methods))}"
         )
 
+    ensure_dataset_loaded(dataset_id)
     methods_to_run = allowed_methods if method is None else {method}
     table = dataset_table_name(dataset_id)
     results: Dict[str, Any] = {}

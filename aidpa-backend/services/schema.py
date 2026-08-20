@@ -3,7 +3,7 @@ from typing import Any
 
 from db.connection import get_ro_connection
 from db.pg_connection import get_supabase_client
-from services.storage import dataset_table_name, get_upload
+from services.storage import dataset_table_name, ensure_dataset_loaded, get_upload
 
 log = logging.getLogger("aidpa.schema")
 
@@ -40,6 +40,7 @@ def fetch_table_schema(
         )
 
     log.info("Schema for '%s' fetched live from DuckDB.", dataset_id)
+    ensure_dataset_loaded(dataset_id)
     with get_ro_connection() as conn:
         describe_rows = conn.execute(f'DESCRIBE "{table}"').fetchall()
         columns: list[dict[str, str]] = [

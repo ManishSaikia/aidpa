@@ -58,7 +58,7 @@ def analyze_csv_data(contents: bytes, filename: str) -> Dict[str, Any]:
 
     for encoding in _ENCODINGS:
         try:
-            df = pd.read_csv(io.BytesIO(contents), encoding=encoding)
+            df = pd.read_csv(io.BytesIO(contents), encoding=encoding, low_memory=False)
             break
         except UnicodeDecodeError as exc:
             last_error = exc

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from db.connection import get_ro_connection
-from services.storage import dataset_table_name, get_upload
+from services.storage import dataset_table_name, ensure_dataset_loaded, get_upload
 
 # DuckDB type substrings that indicate a numeric column.
 _NUMERIC_TYPE_MARKERS = ("INT", "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL", "HUGEINT")
@@ -19,6 +19,7 @@ def compute_column_stats(dataset_id: str) -> Dict[str, Any]:
     if get_upload(dataset_id) is None:
         raise ValueError(f"Dataset '{dataset_id}' not found.")
 
+    ensure_dataset_loaded(dataset_id)
     table = dataset_table_name(dataset_id)
     column_stats: Dict[str, Any] = {}
 
@@ -109,6 +110,7 @@ def compute_quality_report(
     if get_upload(dataset_id) is None:
         raise ValueError(f"Dataset '{dataset_id}' not found.")
 
+    ensure_dataset_loaded(dataset_id)
     table = dataset_table_name(dataset_id)
     column_report: Dict[str, Any] = {}
     flagged: List[str] = []

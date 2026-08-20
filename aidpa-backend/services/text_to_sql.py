@@ -9,7 +9,7 @@ from google.genai import types as genai_types
 from services.prompt_renderer import render_prompt
 from services.query import _validate_sql, execute_paginated_query
 from services.schema import fetch_table_schema
-from services.storage import dataset_table_name
+from services.storage import dataset_table_name, ensure_dataset_loaded
 
 log = logging.getLogger("aidpa.text_to_sql")
 
@@ -48,7 +48,7 @@ def _explain_results(
         question=question,
         columns=columns,
         rows_sample=rows_sample[:10],
-        row_count=total_count,  # use total, not page size, for accurate context
+        row_count=total_count,
     )
 
     response = client.models.generate_content(
@@ -81,10 +81,10 @@ def generate_and_execute(
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY is not set in .env")
 
+    ensure_dataset_loaded(dataset_id)
     schema = fetch_table_schema(dataset_id)
     table_name = schema["table_name"]
 
-    # No row_limit in the prompt — the server injects LIMIT/OFFSET externally.
     system_prompt = render_prompt("system_text_to_sql.j2", schema=schema)
 
     log.info(
@@ -186,7 +186,7 @@ def generate_and_execute(
             ))
             continue
 
-        # ── Success ──────────────────────────────────────────────────────────
+        # -- Success --
         explanation = _explain_results(
             client,
             dataset_id,
@@ -227,6 +227,7 @@ def execute_raw_sql(
     page: int = 1,
     page_size: int = 10,
 ) -> Dict[str, Any]:
+    ensure_dataset_loaded(dataset_id)
     table_name = dataset_table_name(dataset_id)
     _validate_sql(sql)
     _guard_table_name(sql, table_name)

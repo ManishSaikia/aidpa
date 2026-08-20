@@ -5,14 +5,15 @@ from langchain_core.tools import tool
 from services.analysis_result import build_analysis_result
 from services.anomaly import detect_anomalies as _detect_anomalies
 from services.query import _validate_sql, execute_query
-from services.storage import dataset_table_name
+from services.storage import dataset_table_name, ensure_dataset_loaded
 
 
 def build_tools(dataset_id: str) -> List:
     """
     Returns a list of three LangChain tools bound to a specific dataset.
-    The dataset_id is captured via closure — callers never pass it explicitly.
+    The dataset_id is captured via closure -- callers never pass it explicitly.
     """
+    ensure_dataset_loaded(dataset_id)
     table = dataset_table_name(dataset_id)
 
     @tool
@@ -23,13 +24,13 @@ def build_tools(dataset_id: str) -> List:
         data (e.g. "how many rows", "average salary by department",
         "top 10 players by rating").
 
-        The table name is already known — always write queries as:
+        The table name is already known -- always write queries as:
             SELECT ... FROM "{table_name}" WHERE ... LIMIT N
         Replace {table_name} with the actual table name provided in your context.
 
         Returns a formatted table string (max 20 rows shown to keep context small).
         """
-        query = query.replace("\'" , "'")
+        query = query.replace("\'", "'")
         if table.lower() not in query.lower():
             return (
                 f"Error: query does not reference the expected table '{table}'. "

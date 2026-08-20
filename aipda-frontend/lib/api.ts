@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AgentChatRequest,
   AgentChatResponse,
   AnalysisResult,
@@ -20,7 +20,7 @@ import { supabase } from '@/lib/supabase';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
-// â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Internal helpers ---------------------------------------------------------
 
 async function request<T>(
   path: string,
@@ -59,10 +59,8 @@ async function requestAPI<T>(path: string, options: RequestInit = {}): Promise<T
   return wrapped.data;
 }
 
-// â”€â”€ Upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 export const api = {
-  // â”€â”€ Analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Analysis ---------------------------------------------------------------
 
   async getAnalysis(datasetId: string): Promise<AnalysisResult> {
     return requestAPI<AnalysisResult>(`/datasets/${datasetId}/analysis`);
@@ -81,7 +79,13 @@ export const api = {
     return requestAPI<DatasetInfo>(`/datasets/${datasetId}`);
   },
 
-  // â”€â”€ Text-to-SQL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async deleteDataset(datasetId: string): Promise<{ dataset_id: string; deleted: boolean }> {
+    return requestAPI<{ dataset_id: string; deleted: boolean }>(`/datasets/${datasetId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // -- Text-to-SQL ------------------------------------------------------------
 
   async query(req: QueryRequest, signal?: AbortSignal): Promise<QueryResponse> {
     return request<QueryResponse>('/query', {
@@ -103,7 +107,7 @@ export const api = {
     return request<QueryHistoryRecord[]>(`/query/history?dataset_id=${datasetId}`);
   },
 
-  // â”€â”€ Agent Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Agent Chat -------------------------------------------------------------
 
   async agentChat(req: AgentChatRequest, signal?: AbortSignal): Promise<AgentChatResponse> {
     return request<AgentChatResponse>('/agent/chat', {
@@ -129,13 +133,13 @@ export const api = {
     return request(`/agent/sessions/${sessionId}`, { method: 'DELETE' });
   },
 
-  // â”€â”€ Background Jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Background Jobs --------------------------------------------------------
 
   async getJob(jobId: string): Promise<Job> {
     return request<Job>(`/jobs/${jobId}`);
   },
 
-  // â”€â”€ Embeddings / Vector Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Embeddings / Vector Store ----------------------------------------------
 
   async embedDataset(datasetId: string): Promise<EmbedResponse> {
     return request<EmbedResponse>(`/datasets/${datasetId}/embed`, { method: 'POST' });
@@ -154,7 +158,7 @@ export const api = {
     );
   },
 
-  // ── Account / User ──────────────────────────────────────────────────────────
+  // -- Account / User ---------------------------------------------------------
 
   async getMyStats(): Promise<{
     user_id: string; email: string; is_admin: boolean;
@@ -194,4 +198,3 @@ export const api = {
     return request('/user/admin/costs');
   },
 };
-
