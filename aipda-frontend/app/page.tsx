@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { UploadZone } from '@/components/upload/UploadZone';
@@ -34,7 +34,7 @@ const HOW_IT_WORKS = [
   { num: '03', title: 'Chat', desc: 'Your AI analyst remembers every session and every dataset. Ask follow-ups. Build on past context.' },
 ];
 
-export default function HomePage() {
+function HomePageContent() {
   const { user, signOut, loading } = useAuth();
   const router = useRouter();
   const uploadRef = useRef<HTMLDivElement>(null);
@@ -201,3 +201,10 @@ export default function HomePage() {
   );
 }
 
+export default function HomePage() {
+  return (
+    <Suspense>
+      <HomePageContent />
+    </Suspense>
+  );
+}

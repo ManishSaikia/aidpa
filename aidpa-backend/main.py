@@ -19,12 +19,21 @@ from routers.agent import router as agent_router
 from routers.embed import router as embed_router
 from routers.user import router as user_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(name)s:%(message)s",
-)
+from lib.logging_config import configure_logging
+configure_logging(os.getenv("LOG_LEVEL", "INFO"))
 
-log = logging.getLogger("aidpa.main")
+import sentry_sdk
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+        traces_sample_rate=0.05,
+        send_default_pii=False,
+    )
+
+import structlog
+log = structlog.get_logger("aidpa.main")
 
 
 # ── App lifespan (startup / shutdown) ─────────────────────────────────────────
@@ -97,5 +106,6 @@ app.include_router(query_router,     dependencies=_auth)
 app.include_router(agent_router,     dependencies=_auth)
 app.include_router(embed_router,     dependencies=_auth)
 app.include_router(user_router,      dependencies=_auth)
+
 
 

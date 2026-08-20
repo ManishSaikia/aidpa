@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccount } from '@/hooks/useAccount';
 import { useAdminUsers, type AdminUser } from '@/hooks/useAdminUsers';
+import { useAdminCosts, type AdminCosts } from '@/hooks/useAdminCosts';
 import { api } from '@/lib/api';
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -183,14 +184,44 @@ function DeleteSelfModal({
 
 // ── Admin users table ─────────────────────────────────────────────────────────
 
+function AdminSection({ currentUserId, onToast }: { currentUserId: string; onToast: (msg: string) => void }) {
+  const { users, isLoading, error, deletingId, deleteUser } = useAdminUsers(true);
+  return (
+    <>
+      <div style={{ marginBottom: 24 }}>
+        <AdminUsersTable
+          currentUserId={currentUserId}
+          onDelete={onToast}
+          users={users}
+          isLoading={isLoading}
+          error={error}
+          deletingId={deletingId}
+          deleteUser={deleteUser}
+        />
+      </div>
+      <div style={{ marginBottom: 40 }}>
+        <CostOverview adminUsers={users} />
+      </div>
+    </>
+  );
+}
 function AdminUsersTable({
   currentUserId,
   onDelete,
+  users,
+  isLoading,
+  error,
+  deletingId,
+  deleteUser,
 }: {
   currentUserId: string;
   onDelete: (msg: string) => void;
+  users: AdminUser[];
+  isLoading: boolean;
+  error: Error | null;
+  deletingId: string | null;
+  deleteUser: (userId: string) => Promise<void>;
 }) {
-  const { users, isLoading, error, deletingId, deleteUser } = useAdminUsers(true);
   const [search, setSearch] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -247,8 +278,8 @@ function AdminUsersTable({
 
       {/* Error */}
       {error && (
-        <div style={{ padding: '12px 24px', backgroundColor: '#fff5f5', fontSize: 13, color: 'var(--color-error)', fontFamily: 'var(--font-body)' }}>
-          {(error as Error).message}
+        <div style={{ padding: '12px 24px', backgroundColor: 'var(--color-canvas-soft)', fontSize: 13, color: 'var(--color-muted)', fontFamily: 'var(--font-body)', borderTop: '1px solid var(--color-hairline)' }}>
+          Cost data unavailable — run migration <code style={{ fontFamily: 'monospace', fontSize: 12 }}>011_api_cost_log.sql</code> in Supabase to enable tracking.
         </div>
       )}
 
@@ -361,7 +392,7 @@ function AdminUsersTable({
                   <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {isSelf ? (
                       <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-muted)' }}>
-                        Use Danger Zone
+                        Admin User
                       </span>
                     ) : isConfirming ? (
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
@@ -415,6 +446,246 @@ function AdminUsersTable({
   );
 }
 
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatCost(usd: number): string {
+  if (usd === 0) return '$0.00';
+  if (usd < 0.0001) return `$${usd.toFixed(8)}`;
+  if (usd < 0.01)   return `$${usd.toFixed(6)}`;
+  if (usd < 1)      return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+function fmtK(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+function fmtDay(dateStr: string): string {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  } catch { return dateStr.slice(5); }
+}
+
+// ── CostOverview ──────────────────────────────────────────────────────────────
+
+function CostOverview({ adminUsers }: { adminUsers: AdminUser[] }) {
+  const { data: costs, isLoading, error } = useAdminCosts(true);
+
+  const emailById = Object.fromEntries(adminUsers.map((u) => [u.user_id, u.email]));
+
+  // Last 14 calendar days (ascending)
+  // Generate the full 14-day window — fill missing days with zero so we always
+  // have 14 bars instead of a single full-width bar when only 1 day has data.
+  const dayDataMap = new Map(
+    (costs?.by_day ?? []).map((d) => [d.date, d])
+  );
+  const last14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    const dateStr = d.toISOString().slice(0, 10);
+    return dayDataMap.get(dateStr) ?? { date: dateStr, cost_usd: 0, calls: 0 };
+  });
+
+  const maxDayCost = Math.max(...last14.map((d) => d.cost_usd), 0.000001);
+  const maxEndpointCost = Math.max(...(costs?.by_endpoint ?? []).map((e) => e.cost_usd), 0.000001);
+
+  const totalCalls = (costs?.by_endpoint ?? []).reduce((s, e) => s + e.calls, 0);
+
+  const Skel = ({ w, h = 14 }: { w: number | string; h?: number }) => (
+    <div style={{ width: w, height: h, borderRadius: 4, backgroundColor: 'var(--color-hairline)', opacity: 0.6 }} />
+  );
+
+  return (
+    <div style={{
+      backgroundColor: 'var(--color-surface-card)',
+      border: '1px solid var(--color-hairline)',
+      borderRadius: 'var(--radius-xl)',
+      boxShadow: 'var(--shadow-card)',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '20px 24px 16px',
+        borderBottom: '1px solid var(--color-hairline)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+      }}>
+        <div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--color-muted)', margin: '0 0 4px' }}>
+            Admin Panel
+          </p>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 300, color: 'var(--color-ink)', margin: 0, letterSpacing: '-0.2px' }}>
+            API Cost Overview
+          </h3>
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-muted)',
+          backgroundColor: 'var(--color-canvas-soft)', border: '1px solid var(--color-hairline)',
+          borderRadius: 'var(--radius-pill)', padding: '4px 12px',
+        }}>
+          Last 30 days
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: '12px 24px', backgroundColor: 'var(--color-canvas-soft)', fontSize: 13, color: 'var(--color-muted)', fontFamily: 'var(--font-body)', borderTop: '1px solid var(--color-hairline)' }}>
+          Cost data unavailable — run migration <code style={{ fontFamily: 'monospace', fontSize: 12 }}>011_api_cost_log.sql</code> in Supabase to enable tracking.
+        </div>
+      )}
+
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+        {/* ── Metric cards ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+          {[
+            { label: 'Total Cost',     value: isLoading ? null : formatCost(costs?.total_cost_usd ?? 0),         icon: '💰' },
+            { label: 'Input Tokens',   value: isLoading ? null : fmtK(costs?.total_input_tokens ?? 0),           icon: '📥' },
+            { label: 'Output Tokens',  value: isLoading ? null : fmtK(costs?.total_output_tokens ?? 0),          icon: '📤' },
+            { label: 'Total Calls',    value: isLoading ? null : String(totalCalls),                             icon: '🔁' },
+          ].map((card) => (
+            <div key={card.label} style={{
+              backgroundColor: 'var(--color-canvas-soft)', borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-hairline)', padding: '14px 16px',
+            }}>
+              <div style={{ fontSize: 16, marginBottom: 8 }}>{card.icon}</div>
+              {card.value === null
+                ? <Skel w={80} h={20} />
+                : <div style={{ fontFamily: 'var(--font-body)', fontSize: 18, fontWeight: 700, color: 'var(--color-ink)', lineHeight: 1, marginBottom: 4 }}>{card.value}</div>
+              }
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>{card.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Endpoint breakdown ── */}
+        <div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--color-muted)', margin: '0 0 12px' }}>
+            By Endpoint
+          </p>
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[1,2,3].map((i) => <Skel key={i} w="100%" h={36} />)}
+            </div>
+          ) : !costs?.by_endpoint.length ? (
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-muted)', margin: 0 }}>No calls recorded yet.</p>
+          ) : (
+            <div style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-hairline)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--color-canvas-soft)' }}>
+                    {['Endpoint', 'Calls', 'In tokens', 'Out tokens', 'Cost'].map((h) => (
+                      <th key={h} style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '0.7px', textTransform: 'uppercase', color: 'var(--color-muted)', padding: '8px 14px', textAlign: 'left', borderBottom: '1px solid var(--color-hairline)', whiteSpace: 'nowrap' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {costs.by_endpoint.map((ep, i) => {
+                    const barPct = (ep.cost_usd / maxEndpointCost) * 100;
+                    return (
+                      <tr key={ep.endpoint} style={{ borderTop: i > 0 ? '1px solid var(--color-hairline-soft)' : 'none' }}>
+                        <td style={{ padding: '10px 14px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 500, color: 'var(--color-ink)' }}>
+                          <code style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-muted)', backgroundColor: 'var(--color-canvas-soft)', padding: '2px 6px', borderRadius: 3 }}>
+                            {ep.endpoint}
+                          </code>
+                        </td>
+                        <td style={{ padding: '10px 14px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-body)', textAlign: 'center' }}>{ep.calls}</td>
+                        <td style={{ padding: '10px 14px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-muted)' }}>{fmtK(ep.input_tokens)}</td>
+                        <td style={{ padding: '10px 14px', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-muted)' }}>{fmtK(ep.output_tokens)}</td>
+                        <td style={{ padding: '10px 14px', minWidth: 120 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 4, borderRadius: 99, backgroundColor: 'var(--color-hairline)', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${barPct}%`, borderRadius: 99, backgroundColor: 'var(--color-ink)' }} />
+                            </div>
+                            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', whiteSpace: 'nowrap' }}>
+                              {formatCost(ep.cost_usd)}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── 14-day bar chart ── */}
+        <div>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--color-muted)', margin: '0 0 12px' }}>
+            Daily Spend — Last 14 Days
+          </p>
+          {isLoading ? (
+            <Skel w="100%" h={80} />
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+              {last14.map((day) => {
+                const BAR_MAX_PX = 60;  // px reserved for bars
+                const barPx = day.cost_usd === 0
+                  ? 2
+                  : Math.max(Math.round((day.cost_usd / maxDayCost) * BAR_MAX_PX), 3);
+                return (
+                  <div key={day.date}
+                    title={`${fmtDay(day.date)}: ${formatCost(day.cost_usd)} (${day.calls} call${day.calls !== 1 ? 's' : ''})`}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+                  >
+                    <div style={{
+                      width: '100%', borderRadius: '3px 3px 0 0',
+                      height: barPx,
+                      backgroundColor: day.cost_usd === 0 ? 'var(--color-hairline)' : 'var(--color-ink)',
+                      transition: 'height 300ms ease',
+                    }} />
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, color: 'var(--color-muted)', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textAlign: 'center', lineHeight: 1 }}>
+                      {fmtDay(day.date)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Top users by cost ── */}
+        {!isLoading && (costs?.by_user ?? []).length > 0 && (
+          <div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--color-muted)', margin: '0 0 12px' }}>
+              Top Users by Cost
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {costs!.by_user.slice(0, 5).map((u) => {
+                const email = emailById[u.user_id] ?? u.user_id.slice(0, 8) + '…';
+                const maxUserCost = costs!.by_user[0]?.cost_usd || 0.000001;
+                const barPct = (u.cost_usd / maxUserCost) * 100;
+                return (
+                  <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-body)', minWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {email}
+                    </span>
+                    <div style={{ flex: 1, height: 4, borderRadius: 99, backgroundColor: 'var(--color-hairline)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${barPct}%`, borderRadius: 99, backgroundColor: 'var(--color-ink)' }} />
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--color-ink)', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right' }}>
+                      {formatCost(u.cost_usd)}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+                      {u.calls} call{u.calls !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AccountPage() {
@@ -606,14 +877,12 @@ export default function AccountPage() {
           <StatCard icon="🔍" value={statsLoading ? '…' : stats?.queries_count ?? 0} label="Queries run" />
         </div>
 
-        {/* ── Admin users table ──────────────────────────────────────────── */}
+        {/* Admin section */}
         {stats?.is_admin && (
-          <div style={{ marginBottom: 40 }}>
-            <AdminUsersTable
-              currentUserId={user.id!}
-              onDelete={(msg) => setToast(msg)}
-            />
-          </div>
+          <AdminSection
+            currentUserId={user.id!}
+            onToast={(msg) => setToast(msg)}
+          />
         )}
 
         {/* ── Danger zone ────────────────────────────────────────────────── */}
@@ -658,4 +927,9 @@ export default function AccountPage() {
     </main>
   );
 }
+
+
+
+
+
 

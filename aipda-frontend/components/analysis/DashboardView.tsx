@@ -21,8 +21,6 @@ interface Props {
   datasetId: string;
 }
 
-// ── Stub content for tabs not yet built ──────────────────────────────────────
-
 function TabStub({ label }: { label: string }) {
   return (
     <div style={{
@@ -135,7 +133,7 @@ export function DashboardView({ datasetId }: Props) {
 
   return (
     <>
-      {/* Tab bar — sticky below the top nav */}
+      {/* Tab bar */}
       <div style={tabBarStyle}>
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
@@ -150,7 +148,7 @@ export function DashboardView({ datasetId }: Props) {
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: '16px 20px', position: 'relative',
                 borderBottom: active ? '2px solid var(--color-ink)' : '2px solid transparent',
-                marginBottom: -1, // overlap the border-bottom of the nav
+                marginBottom: -1,
                 transition: 'color 150ms ease',
               }}
             >
@@ -164,7 +162,6 @@ export function DashboardView({ datasetId }: Props) {
       <div style={{
         maxWidth: 1200,
         margin: '0 auto',
-        // Ask + Chat: horizontal padding only, no vertical (they manage their own height/scroll)
         padding: (activeTab === 'ask' || activeTab === 'chat')
           ? '0 32px'
           : '40px 32px 80px',
@@ -173,13 +170,12 @@ export function DashboardView({ datasetId }: Props) {
 
         {activeTab === 'memory' && <TabStub label="Memory" />}
 
-        {/* Ask — always mounted so history survives tab switches. */}
+        {/* Ask */}
         <div style={{ display: activeTab === 'ask' ? 'flex' : 'none', flexDirection: 'column' }}>
           <AskView datasetId={datasetId} isActive={activeTab === 'ask'} />
         </div>
 
-        {/* Chat — always mounted so messages/session survive tab switches.
-            display:none hides without unmounting the component tree. */}
+        {/* Chat */}
         <div style={{ display: activeTab === 'chat' ? 'flex' : 'none', flexDirection: 'column' }}>
           <ChatView datasetId={datasetId} isActive={activeTab === 'chat'} />
         </div>
@@ -211,13 +207,13 @@ export function DashboardView({ datasetId }: Props) {
               </Link>
             </div>
 
-            {/* Task 4 — Quality Badge Row */}
+            {/* Quality Badge Row */}
             <div>
               <SectionHeader title="Dataset Health" />
               <QualityBadgeRow analysis={analysis} />
             </div>
 
-            {/* Task 2 — Anomaly Panel */}
+            {/* Anomaly Panel */}
             <div>
               <SectionHeader
                 title="Outlier Columns"
@@ -227,13 +223,12 @@ export function DashboardView({ datasetId }: Props) {
                 analysis={analysis}
                 onColumnClick={(col) => {
                   setHighlightColumn(col);
-                  // Small timeout so table can scroll after React re-renders
                   setTimeout(() => setHighlightColumn(null), 2500);
                 }}
               />
             </div>
 
-            {/* Task 1 — Column Stats Table (+ Task 3 inline charts) */}
+            {/* Column Stats Table */}
             <div>
               <SectionHeader
                 title="Column Explorer"

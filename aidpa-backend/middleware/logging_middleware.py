@@ -1,25 +1,30 @@
-import logging
-import time
+﻿import time
+import uuid
 
+import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-logger = logging.getLogger("aidpa.requests")
+log = structlog.get_logger("aidpa.requests")
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Logs method, path, status code, and response time for every request."""
-
     async def dispatch(self, request: Request, call_next):
+        request_id = str(uuid.uuid4())[:8]
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+        )
+
         start = time.perf_counter()
         response = await call_next(request)
-        elapsed_ms = (time.perf_counter() - start) * 1000
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
 
-        logger.info(
-            "%s %s %s %.2fms",
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
+        log.info(
+            "request",
+            status=response.status_code,
+            duration_ms=duration_ms,
         )
         return response

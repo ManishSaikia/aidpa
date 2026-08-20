@@ -190,3 +190,61 @@ async def admin_list_users(admin: AuthUser = Depends(get_admin_user)):
 
     result.sort(key=lambda x: (-int(x["is_admin"]), -x["storage_used_bytes"]))
     return result
+
+
+# ── GET /admin/costs ──────────────────────────────────────────────────────────
+
+@router.get("/admin/costs", summary="[Admin] Gemini API cost breakdown — last 30 days")
+async def admin_get_costs(admin: AuthUser = Depends(get_admin_user)):
+    from db.pg_connection import get_supabase_client
+    sb = get_supabase_client()
+
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    try:
+        rows = (
+            sb.table("api_cost_log")
+            .select("user_id, model, endpoint, input_tokens, output_tokens, cost_usd, created_at")
+            .gte("created_at", cutoff)
+            .order("created_at", desc=True)
+            .execute()
+            .data or []
+        )
+    except Exception:
+        # Table does not exist yet (migration 011 not run) — return empty payload.
+        rows = []
+
+    total_cost   = sum(float(r.get("cost_usd", 0)) for r in rows)
+    total_input  = sum(r.get("input_tokens", 0)  for r in rows)
+    total_output = sum(r.get("output_tokens", 0) for r in rows)
+
+    # By day
+    from collections import defaultdict
+    by_day: dict = defaultdict(lambda: {"cost_usd": 0.0, "calls": 0})
+    by_endpoint: dict = defaultdict(lambda: {"cost_usd": 0.0, "calls": 0, "input_tokens": 0, "output_tokens": 0})
+    by_user: dict = defaultdict(lambda: {"cost_usd": 0.0, "calls": 0})
+
+    for r in rows:
+        day = (r.get("created_at") or "")[:10]
+        by_day[day]["cost_usd"] += float(r.get("cost_usd", 0))
+        by_day[day]["calls"]    += 1
+
+        ep = r.get("endpoint") or "unknown"
+        by_endpoint[ep]["cost_usd"]      += float(r.get("cost_usd", 0))
+        by_endpoint[ep]["calls"]         += 1
+        by_endpoint[ep]["input_tokens"]  += r.get("input_tokens", 0)
+        by_endpoint[ep]["output_tokens"] += r.get("output_tokens", 0)
+
+        uid = str(r.get("user_id") or "anonymous")
+        by_user[uid]["cost_usd"] += float(r.get("cost_usd", 0))
+        by_user[uid]["calls"]    += 1
+
+    return {
+        "period":            "last_30_days",
+        "total_cost_usd":    round(total_cost, 6),
+        "total_input_tokens":  total_input,
+        "total_output_tokens": total_output,
+        "by_day":      [{"date": k, **v} for k, v in sorted(by_day.items(), reverse=True)],
+        "by_endpoint": [{"endpoint": k, **v} for k, v in sorted(by_endpoint.items(), key=lambda x: -x[1]["cost_usd"])],
+        "by_user":     [{"user_id": k, **v} for k, v in sorted(by_user.items(), key=lambda x: -x[1]["cost_usd"])],
+    }

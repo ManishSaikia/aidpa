@@ -1,4 +1,5 @@
-﻿import logging
+﻿import asyncio
+import logging
 import os
 from typing import Any, Dict
 
@@ -168,7 +169,21 @@ def run_agent(session_id: str, dataset_id: str, question: str, user_id: str | No
         config,
     )
 
+    # Cost tracking — usage_metadata is on the final AIMessage
     final_message = result["messages"][-1]
+    try:
+        usage = getattr(final_message, "usage_metadata", None)
+        if usage:
+            from services.cost_tracker import log_api_cost
+            log_api_cost(
+                user_id=user_id,
+                model=_MODEL,
+                endpoint="agent",
+                input_tokens=usage.get("input_tokens", 0) if isinstance(usage, dict) else getattr(usage, "input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0) if isinstance(usage, dict) else getattr(usage, "output_tokens", 0),
+            )
+    except Exception as _cost_exc:
+        log.debug("Cost tracking skipped for agent turn: %s", _cost_exc)
     raw_content = final_message.content if hasattr(final_message, "content") else str(final_message)
 
     if isinstance(raw_content, list):
@@ -192,4 +207,5 @@ def clear_session(session_id: str) -> None:
             cp.delete_checkpoints({"configurable": {"thread_id": session_id}})
     except Exception as exc:
         log.warning("clear_session(%s) failed: %s", session_id, exc)
+
 

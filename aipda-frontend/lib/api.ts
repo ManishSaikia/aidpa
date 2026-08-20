@@ -181,4 +181,17 @@ export const api = {
   async adminDeleteUser(userId: string): Promise<{ message: string; deleted: Record<string, number> }> {
     return request(`/user/admin/users/${userId}`, { method: 'DELETE' });
   },
+
+  async getAdminCosts(): Promise<{
+    period: string;
+    total_cost_usd: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    by_day: { date: string; cost_usd: number; calls: number }[];
+    by_endpoint: { endpoint: string; cost_usd: number; calls: number; input_tokens: number; output_tokens: number }[];
+    by_user: { user_id: string; cost_usd: number; calls: number }[];
+  }> {
+    return request('/user/admin/costs');
+  },
 };
+
