@@ -3,7 +3,7 @@ name = "aidpa"
 version = "0.1.0"
 description = "AI-Powered Data Pipeline Analyst"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     "duckdb>=1.5.3",
     "fastapi[standard]>=0.136.3",

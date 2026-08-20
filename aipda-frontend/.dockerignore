@@ -1,0 +1,25 @@
+﻿# Dependencies — reinstalled inside image
+node_modules/
+
+# Next.js build output — rebuilt inside image
+.next/
+
+# Secrets — NEVER bake into image
+.env
+.env.local
+.env*.local
+
+# AI assistant context files — not needed at runtime
+AGENTS.md
+CLAUDE.md
+
+# Dev/editor artifacts
+.DS_Store
+*.log
+.git/
+.gitignore
+README.md
+DESIGN*.md
+
+# Sentry auth token (inject via ARG at build time, not file)
+.sentryclirc

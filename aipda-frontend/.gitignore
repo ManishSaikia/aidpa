@@ -42,3 +42,5 @@ next-env.d.ts
 
 # design spec — do not commit
 DESIGN-elevenlabs.md
+AGENTS.md
+CLAUDE.md

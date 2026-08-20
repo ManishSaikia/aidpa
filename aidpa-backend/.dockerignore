@@ -1,0 +1,30 @@
+﻿# Virtual environment — recreated in image
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets — NEVER bake into image
+.env
+.env.*
+
+# AI assistant context files — not needed at runtime
+AGENTS.md
+CLAUDE.md
+
+# Data files — injected via volume in dev, object storage in prod
+duckdb_data/
+*.db
+*.duckdb
+
+# Dev/editor artifacts
+.DS_Store
+*.log
+.git/
+.gitignore
+README.md
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage

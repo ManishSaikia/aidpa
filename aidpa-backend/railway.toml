@@ -1,0 +1,15 @@
+﻿# Railway deployment configuration
+# Docs: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+# FastAPI /health returns 200 when the process is alive.
+# Railway routes traffic here only after this passes.
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+# Restart automatically on crash (not on intentional stop).
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
